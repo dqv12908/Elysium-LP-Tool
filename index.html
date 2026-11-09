@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Elysium LP Helper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+    { "imports": { "viem": "https://esm.sh/viem@2.38.0" } }
+  </script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"></span>
+      <div>
+        <h1>Elysium LP Helper</h1>
+        <p class="sub">KNTQ/USDC 2% · KNTQ/HYPE 0.8% · Uniswap v4</p>
+      </div>
+    </div>
+    <div class="wallet">
+      <span id="netBadge" class="badge">Read-only</span>
+      <span id="acct" class="mono muted"></span>
+      <button id="connectBtn" class="btn primary">Connect MetaMask</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="fee-notice" id="feeNotice" aria-label="Tool fee">
+      <strong>Fee:</strong> this tool takes <b data-fee-pct>10%</b> of the LP fees you earn, only when you collect or withdraw.
+      Your deposit and swaps are never charged. Fees go to
+      <a data-fee-recipient class="mono" target="_blank" rel="noopener" href="https://elysium.kinetiq.xyz/explorer/address/0xd977de5063b91AbEAe53Bc19B56c08b0904b09c3">0xd977de5063b91AbEAe53Bc19B56c08b0904b09c3</a>.
+      Every collect / remove shows the exact fee amounts before you sign.
+    </section>
+
+    <section class="warning" role="alert">
+      <strong>Read this first.</strong>
+      Providing liquidity exposes you to <b>impermanent loss</b>: if the KNTQ price moves, you end up with more of the
+      token that fell and less of the one that rose. The KNTQ/USDC pool is <b>very thin</b> (a few hundred dollars), so prices can
+      jump on small trades and your share of the pool can be large. In the KNTQ/HYPE pool both tokens move against the dollar. Narrow ranges earn more while in range but stop
+      earning (and sit 100% in one token) when the price leaves them. This page is a tool, <b>not financial advice</b>.
+      Start small.
+    </section>
+
+    <section class="checks" id="checks">
+      <div class="check" id="chkPool"><span class="dot"></span>Pool ids</div>
+      <div class="check" id="chkPm"><span class="dot"></span>PositionManager → PoolManager</div>
+      <div class="check" id="chkSwap"><span class="dot"></span>Swap router &amp; HYPE pools</div>
+      <div class="check" id="chkChain"><span class="dot"></span>Wallet network</div>
+    </section>
+
+    <div class="grid">
+      <section class="card" id="poolCard">
+        <div class="card-head">
+          <h2 id="poolTitle">Pool</h2>
+          <button id="refreshBtn" class="btn ghost small">Refresh</button>
+        </div>
+        <div class="price-row">
+          <div>
+            <div class="label">KNTQ price</div>
+            <div class="big" id="pUsd">—</div>
+          </div>
+          <div>
+            <div class="label" id="pKntqLabel">KNTQ per USDC</div>
+            <div class="big dim" id="pKntq">—</div>
+          </div>
+        </div>
+        <dl class="kv">
+          <dt>Pool liquidity (TVL)</dt><dd id="tvl">—</dd>
+          <dt>Composition</dt><dd id="tvlComp">—</dd>
+          <dt>Current tick</dt><dd id="tick" class="mono">—</dd>
+          <dt>Active liquidity</dt><dd id="activeL" class="mono">—</dd>
+          <dt>Fee tier</dt><dd id="feeTier">2% (tick spacing 200)</dd>
+          <dt>Pool id</dt><dd class="mono small break" id="poolId">—</dd>
+        </dl>
+        <p class="hint" id="poolUpdated"></p>
+      </section>
+
+      <section class="card" id="balCard">
+        <div class="card-head"><h2>Your wallet</h2></div>
+        <div class="wallet-total">
+          <span class="wt-label">Total value</span>
+          <span class="wt-value" id="vTotal">—</span>
+        </div>
+        <dl class="kv kv3">
+          <dt>KNTQ</dt><dd id="bKntq">—</dd><dd class="usd" id="vKntq">—</dd>
+          <dt>HYPE (gas)</dt><dd id="bHype">—</dd><dd class="usd" id="vHype">—</dd>
+          <dt>USDC</dt><dd id="bUsdc">—</dd><dd class="usd" id="vUsdc">—</dd>
+        </dl>
+        <p class="hint" id="vPrices"></p>
+        <p class="hint">Connect MetaMask to see balances. This page never holds funds or keys; every action is a
+          transaction you review and sign in MetaMask.</p>
+      </section>
+    </div>
+
+    <section class="card" id="swapCard">
+      <div class="card-head">
+        <h2>Step 1 — Get tokens</h2>
+        <span class="step-hint">Swap HYPE → USDC / KNTQ, or USDC → HYPE, on Uniswap v4 (Elysium)</span>
+      </div>
+      <dl class="kv swap-kv">
+        <dt>HYPE price</dt><dd id="swHypeUsd">—</dd>
+        <dt>HYPE balance</dt><dd id="swBal">—</dd>
+        <dt>Kept for gas</dt><dd id="swReserve">—</dd>
+        <dt>Spendable</dt><dd id="swSpendable">—</dd>
+      </dl>
+      <p class="hint">The reserve is $8 worth of HYPE plus a 3% price cushion and the gas for every later step (about 0.11 HYPE), so at least $8 is still left after you finish. It is never swapped, so you can always pay gas
+        for the approvals, the mint and a later withdrawal. A swap that would leave less than the reserve plus its own
+        gas is refused.</p>
+
+      <div class="split-row">
+        <button class="btn ghost small" id="splitBtn">Split for LP</button>
+        <span class="hint" id="splitDesc">Fills both amounts with your spendable HYPE, split in the value ratio of the range chosen in Step 2.</span>
+      </div>
+
+      <div class="row amounts">
+        <div class="amt swap-col" data-out="USDC">
+          <label for="swInUSDC" class="amt-head">HYPE → USDC <button class="link" data-max="USDC" type="button">max</button></label>
+          <input id="swInUSDC" type="text" inputmode="decimal" placeholder="0.0 HYPE" autocomplete="off" />
+          <div class="quote" id="swQuoteUSDC">Pool fee 0.3%. Type an amount to get a quote.</div>
+          <button class="btn primary" data-swap="USDC" disabled>Swap HYPE → USDC</button>
+        </div>
+        <div class="amt swap-col" data-out="KNTQ">
+          <label for="swInKNTQ" class="amt-head">HYPE → KNTQ <button class="link" data-max="KNTQ" type="button">max</button></label>
+          <input id="swInKNTQ" type="text" inputmode="decimal" placeholder="0.0 HYPE" autocomplete="off" />
+          <div class="quote" id="swQuoteKNTQ">Pool fee 0.8%. Type an amount to get a quote.</div>
+          <button class="btn primary" data-swap="KNTQ" disabled>Swap HYPE → KNTQ</button>
+        </div>
+        <div class="amt swap-col" data-out="HYPE">
+          <label for="usIn" class="amt-head">USDC → HYPE <button class="link" id="usMax" type="button">max</button></label>
+          <input id="usIn" type="text" inputmode="decimal" placeholder="0.0 USDC" autocomplete="off" />
+          <div class="quote" id="usQuote">Pool fee 0.3%. Type a USDC amount to get a quote.</div>
+          <button class="btn primary" id="usBtn" disabled>Swap USDC → HYPE</button>
+        </div>
+      </div>
+      <div class="row opts">
+        <label>Swap slippage % (max 5)
+          <input id="swSlip" type="number" step="0.1" min="0.05" max="5" value="1" />
+        </label>
+      </div>
+      <p class="hint" id="swInfo">Router: Uniswap UniversalRouter 2.1.2 · quotes are an exact simulation of the swap call.</p>
+    </section>
+
+    <section class="card" id="addCard">
+      <div class="card-head">
+        <h2>Step 2 — Add liquidity</h2>
+        <span class="step-hint">choose range → amounts → review &amp; sign</span>
+      </div>
+
+      <div class="label">Pool</div>
+      <div class="seg" id="lpPools" role="radiogroup">
+        <button data-pool="USDC" class="seg-btn active">KNTQ/USDC 2%</button>
+        <button data-pool="HYPE" class="seg-btn">KNTQ/HYPE 0.8%</button>
+      </div>
+      <p class="hint" id="lpPoolHint"></p>
+
+      <div class="label">Price range (USD per KNTQ)</div>
+      <div class="seg" id="presets" role="radiogroup">
+        <button data-p="full" class="seg-btn active">Full range</button>
+        <button data-p="pm20" class="seg-btn">±20%</button>
+        <button data-p="pm50" class="seg-btn">±50%</button>
+        <button data-p="pm80" class="seg-btn">±80%</button>
+        <button data-p="custom" class="seg-btn">Custom</button>
+      </div>
+      <div class="row custom hidden" id="customRow">
+        <label>Min $ / KNTQ <input id="minUsd" type="number" step="any" min="0" inputmode="decimal" /></label>
+        <label>Max $ / KNTQ <input id="maxUsd" type="number" step="any" min="0" inputmode="decimal" /></label>
+      </div>
+      <p class="range-desc" id="rangeDesc">—</p>
+
+      <div class="row amounts">
+        <label class="amt">
+          <span class="amt-head"><span id="amt0Sym">USDC</span> <button class="link" id="max0">max</button></span>
+          <input id="amt0" type="text" inputmode="decimal" placeholder="0.0" autocomplete="off" />
+          <span class="hint" id="amt0Hint"></span>
+        </label>
+        <label class="amt">
+          <span class="amt-head">KNTQ <button class="link" id="max1">max</button></span>
+          <input id="amt1" type="text" inputmode="decimal" placeholder="0.0" autocomplete="off" />
+          <span class="hint" id="amt1Hint"></span>
+        </label>
+      </div>
+      <p class="hint">Type one amount; the other is calculated from the current price and your range.</p>
+
+      <div class="row opts">
+        <label>Slippage tolerance %
+          <input id="slip" type="number" step="0.1" min="0.05" max="20" value="1" />
+        </label>
+        <label class="chk"><input id="infinite" type="checkbox" /> Unlimited approvals (opt-in; default approves the exact amount)</label>
+      </div>
+
+      <div class="summary" id="mintSummary">Enter an amount to see the plan.</div>
+      <div class="actions">
+        <button class="btn primary" id="reviewMint" disabled>Review &amp; add liquidity</button>
+      </div>
+      <ol class="steps" id="mintSteps"></ol>
+      <div id="mintedBanner" class="minted hidden"></div>
+    </section>
+
+    <section class="card" id="posCard">
+      <div class="card-head">
+        <h2>My positions</h2>
+        <div class="row tight">
+          <input id="addTokenId" type="text" inputmode="numeric" placeholder="tokenId" class="narrow" />
+          <button id="addTokenBtn" class="btn ghost small">Add</button>
+          <button id="scanBtn" class="btn ghost small">Scan chain</button>
+          <button id="migResumeBtn" class="btn ghost small" title="Continue moving a KNTQ/USDC position into KNTQ/HYPE 0.8% (e.g. after step (a) burned it, or in another browser)">Continue a move</button>
+        </div>
+      </div>
+      <p class="hint" id="scanStatus"></p>
+      <div id="positions" class="positions"><p class="muted">Connect your wallet to see positions.</p></div>
+    </section>
+
+    <section class="card hidden" id="migrateCard">
+      <div class="card-head">
+        <h2 id="migTitle">Move position</h2>
+        <button id="migClose" class="btn ghost small">Close</button>
+      </div>
+      <p class="hint">Moves a KNTQ/USDC 2% position into the KNTQ/HYPE 0.8% pool in three transactions you sign one by one.
+        Before every step the page re-reads your balances and the pools; you can stop and come back later. Progress is
+        kept in this browser, and each transaction is also found again on chain, so “Continue a move” (My positions)
+        picks it up in another browser too. Your HYPE gas reserve is never deposited. Step (a) pays out 100% of your
+        deposit plus 90% of the fees the position earned; the 10% tool fee is taken from those earned fees only.</p>
+      <div class="row opts">
+        <label>New range
+          <span class="seg" id="migPresets" role="radiogroup">
+            <button data-p="full" class="seg-btn active" type="button">Full range</button>
+            <button data-p="pm20" class="seg-btn" type="button">±20%</button>
+            <button data-p="pm50" class="seg-btn" type="button">±50%</button>
+            <button data-p="pm80" class="seg-btn" type="button">±80%</button>
+          </span>
+        </label>
+        <label>Slippage % (max 5)
+          <input id="migSlip" type="number" step="0.1" min="0.05" max="5" value="0.5" />
+        </label>
+      </div>
+      <ol class="steps mig-steps" id="migSteps"></ol>
+      <div class="summary" id="migSummary">—</div>
+      <div class="actions">
+        <button class="btn ghost small" id="migRefresh">Re-check on-chain</button>
+        <button class="btn primary" id="migGo" disabled>—</button>
+      </div>
+    </section>
+
+    <section class="card" id="logCard">
+      <div class="card-head"><h2>Activity</h2></div>
+      <ul id="txlog" class="txlog"><li class="muted">No transactions yet.</li></ul>
+    </section>
+  </main>
+
+  <dialog id="modal">
+    <form method="dialog" class="modal-body">
+      <h3 id="mTitle"></h3>
+      <div class="kv2">
+        <div class="label">Contract</div><div id="mContract" class="mono small break"></div>
+        <div class="label">Function</div><div id="mFn" class="mono small break"></div>
+      </div>
+      <ul id="mLines" class="mlines"></ul>
+      <div id="mSim" class="sim"></div>
+      <div class="actions">
+        <button value="cancel" class="btn ghost">Cancel</button>
+        <button value="ok" id="mOk" class="btn primary">Sign in MetaMask</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+  <footer class="foot">
+    Contracts: PoolManager <a id="lPm" target="_blank" rel="noopener"></a> · PositionManager <a id="lPosm" target="_blank" rel="noopener"></a> · Permit2 <a id="lP2" target="_blank" rel="noopener"></a> · UniversalRouter <a id="lUr" target="_blank" rel="noopener"></a>
+  </footer>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

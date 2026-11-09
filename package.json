@@ -1,0 +1,22 @@
+{
+  "name": "elysium-lp-tool",
+  "version": "1.0.0",
+  "description": "Self-hosted Uniswap v4 liquidity tool for Elysium (Kinetiq's Hyperliquid L2): swap, LP, collect, withdraw, migrate.",
+  "license": "MIT",
+  "type": "module",
+  "repository": { "type": "git", "url": "https://github.com/dqv12908/Elysium-LP-Tool.git" },
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node serve.mjs",
+    "serve": "node serve.mjs",
+    "test": "node test/fork.test.mjs",
+    "test:swap": "node test/swap.test.mjs",
+    "test:migrate": "node test/migrate.test.mjs",
+    "test:verify-migrate": "node test/verify-migrate.test.mjs",
+    "test:fee": "node test/fee.test.mjs",
+    "test:all": "node test/fork.test.mjs && node test/swap.test.mjs && node test/verify-encoding.test.mjs && node test/verify-funds.test.mjs && node test/verify-swap.test.mjs && node test/migrate.test.mjs && node test/verify-migrate.test.mjs && node test/fee.test.mjs"
+  },
+  "dependencies": {
+    "viem": "2.38.0"
+  }
+}
